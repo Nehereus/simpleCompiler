@@ -66,12 +66,32 @@
       ((eq? 'begin (statement-type statement)) (interpret-block statement environment return break continue throw))
       ((eq? 'throw (statement-type statement)) (interpret-throw statement environment throw))
       ((eq? 'try (statement-type statement)) (interpret-try statement environment return break continue throw))
+      ((eq? 'funcall (statement-type statement))(function-execution ))
       (else (myerror "Unknown statement:" (statement-type statement))))))
+
+(define function-execution
+  (lambda (statement environment return break continue throw)
+    (interpret-statement-list (closure-body (lookup (function-name statement)))
+                              (bind-parameters (closure-formal (lookup (function-name statement))) (funcall-arguments statement) (push-frame ((closure-environment (lookup (function-name statement) environment)) environment)) environment)
+                              return
+                              break
+                              continue
+                              throw)))
+
+(define bind-parameters
+  (lambda (formal-parameters argument-list fstate2 environment)
+    (cond
+      ((and (null? formal-parameters)(null? argument-list)) fstate2)
+      ((or (null? formal-parameters)(null? argument-list))(error "number of arguments has to match the number of parameters"))
+      (else (bind-parameters (cdr formal-parameters) (cdr argument-list) (insert (car formal-parameters) (car argument-list) fstate2) environment)))))
 
 (define function-name cadr)
 (define formal-param caddr)
 (define function-body cadddr)
-(define closure-body caddr)
+(define funcall-arguments cddr)
+(define closure-body cadr)
+(define closure-environment caddr)
+(define closure-formal car)
 ;M-state for handling function call
 (define interpret-function-outer
   (lambda (statement environment)
@@ -79,14 +99,11 @@
 
 (define make-closure
   (lambda (formal-param body environment)
-    (list formal-param body (insert-formal-param-outer formal-param environment))))
+    (list formal-param body get-active-bindings)))
 
-(define insert-formal-param-outer
-  (lambda (param-lis environment)
-    (cond
-      ((null? param-lis) environment)
-      (else (insert-formal-param-outer (cdr param-lis) (insert (car param-lis) 'novalue environment))))))
-
+(define get-active-bindings
+  (lambda (environment)
+    (car environment)))
 ; Calls the return continuation with the given expression value
 (define interpret-return
   (lambda (statement environment return)
