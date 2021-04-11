@@ -17,8 +17,8 @@
     (scheme->language
      (call/cc
       (lambda (return)
-        (interpret-statement-list (function-body (lookup-in-env 'main (environment-after-outer-layer (parser file) newenvironment)))
-                                  (environment-after-outer-layer (parser file) newenvironment)
+        (interpret-statement-list (function (lookup-in-env 'main (environment-after-outer-layer (parser file) (newenvironment))))
+                                  (environment-after-outer-layer (parser file) (newenvironment))
                                   return
                                   (lambda (env) (myerror "Break used outside of loop"))
                                   (lambda (env) (myerror "Continue used outside of loop"))
@@ -89,6 +89,7 @@
 (define formal-param caddr)
 (define function-body cadddr)
 (define funcall-arguments cddr)
+(define function cadr)
 (define closure-body cadr)
 (define closure-environment caddr)
 (define closure-formal car)
