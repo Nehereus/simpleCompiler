@@ -1,6 +1,6 @@
 ; If you are using scheme instead of racket, comment these two lines, uncomment the (load "simpleParser.scm") and comment the (require "simpleParser.rkt")
 #lang racket
-(require "simpleParser.rkt")
+(require "functionParser.rkt")
 ; (load "simpleParser.scm")
 
 
@@ -17,9 +17,31 @@
     (scheme->language
      (call/cc
       (lambda (return)
-        (interpret-statement-list (parser file) (newenvironment) return
-                                  (lambda (env) (myerror "Break used outside of loop")) (lambda (env) (myerror "Continue used outside of loop"))
+        (interpret-statement-list (function-body (lookup-in-env 'main (environment-after-outer-layer (parser file) newenvironment)))
+                                  (environment-after-outer-layer (parser file) newenvironment)
+                                  return
+                                  (lambda (env) (myerror "Break used outside of loop"))
+                                  (lambda (env) (myerror "Continue used outside of loop"))
                                   (lambda (v env) (myerror "Uncaught exception thrown"))))))))
+
+(define environment-after-outer-layer
+  (lambda (parse-tree empty-environment)
+    (outer-layer-list parse-tree empty-environment)))
+
+(define outer-layer-list
+  (lambda (statement-list environment)
+    (if (null? statement-list)
+        environment
+        (outer-layer-list (cdr statement-list) (outer-layer (car statement-list) environment)))))
+
+(define outer-layer
+  (lambda (statement environment)
+    (cond
+      ((eq? 'var (statement-type statement)) (interpret-declare statement environment))
+      ((eq? '= (statement-type statement)) (interpret-assign statement environment))
+      ;((eq? 'begin (statement-type statement)) (interpret-block statement environment return break continue throw))
+      ((eq? 'function (statement-type statement)) (interpret-function-outer statement environment))
+      (else (myerror "Unknown statement:" (statement-type statement))))))
 
 ; interprets a list of statements.  The environment from each statement is used for the next ones.
 ; Mstate (<statement><statement-list>, state) = Mstate(<statement-list>, Mstate(<statement>, state))
@@ -45,6 +67,25 @@
       ((eq? 'throw (statement-type statement)) (interpret-throw statement environment throw))
       ((eq? 'try (statement-type statement)) (interpret-try statement environment return break continue throw))
       (else (myerror "Unknown statement:" (statement-type statement))))))
+
+(define function-name cadr)
+(define formal-param caddr)
+(define function-body cadddr)
+(define closure-body caddr)
+;M-state for handling function call
+(define interpret-function-outer
+  (lambda (statement environment)
+    (insert (function-name statement) (make-closure (formal-param statement) (function-body statement) environment) environment)))
+
+(define make-closure
+  (lambda (formal-param body environment)
+    (list formal-param body (insert-formal-param-outer formal-param environment))))
+
+(define insert-formal-param-outer
+  (lambda (param-lis environment)
+    (cond
+      ((null? param-lis) environment)
+      (else (insert-formal-param-outer (cdr param-lis) (insert (car param-lis) 'novalue environment))))))
 
 ; Calls the return continuation with the given expression value
 (define interpret-return
@@ -398,3 +439,7 @@
                             (makestr (string-append str (string-append " " (symbol->string (car vals)))) (cdr vals))))))
       (error-break (display (string-append str (makestr "" vals)))))))
 
+
+;--------------------------------------------------------------------
+(parser "test.txt")
+(interpret "test.txt")
