@@ -82,7 +82,7 @@
   (lambda (params args fstate environment throw)
     (if (null? params)
         fstate
-        (bind-parameters (cdr params) (cdr args) (insert (car params) (eval-expression (car args) environment throw) fstate) environment))))
+        (bind-parameters (cdr params) (cdr args) (insert (car params) (eval-expression (car args) environment throw) fstate) environment throw))))
 
 (define function-name cadr)
 (define formal-param caddr)
